@@ -259,7 +259,13 @@ func NewClientWithPort(port string) (client Client, err error) {
 	if port == "" {
 		return nil, errors.New("nil port")
 	}
-	return NewClientWithAddress(net.JoinHostPort("127.0.0.1", port))
+
+	address := os.Getenv(daprGRPCEndpointEnvVarName)
+	if address == "" {
+		address = "127.0.0.1"
+	}
+
+	return NewClientWithAddress(net.JoinHostPort(address, port))
 }
 
 // NewClientWithAddress instantiates Dapr using specific address (including port).
@@ -270,7 +276,7 @@ func NewClientWithAddress(address string) (client Client, err error) {
 
 // NewClientWithAddressContext instantiates Dapr using specific address (including port).
 // Uses the provided context to create the connection.
-func NewClientWithAddressContext(ctx context.Context, address string) (client Client, err error) {
+func NewClientWithAddressContext(ctx context.Context, address string, opts ...ClientOption) (client Client, err error) {
 	if address == "" {
 		return nil, errors.New("empty address")
 	}
@@ -281,6 +287,7 @@ func NewClientWithAddressContext(ctx context.Context, address string) (client Cl
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	parsedAddress, err := internal.ParseGRPCEndpoint(address)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing address '%s': %w", address, err)
@@ -295,13 +302,33 @@ func NewClientWithAddressContext(ctx context.Context, address string) (client Cl
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(new(tls.Config))))
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+=======
+	var option grpc.DialOption
+
+	cOpts := clientOptions{}
+	for _, opt := range opts {
+		opt(&cOpts)
+	}
+
+	if cOpts.useTLS || strings.Contains(address, "https://") {
+		option = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12}))
+	} else {
+		option = grpc.WithTransportCredentials(insecure.NewCredentials())
+>>>>>>> upstream/release-1.9
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	conn, err := grpc.DialContext(
 		ctx,
+<<<<<<< HEAD
 		parsedAddress.Target,
 		opts...,
+=======
+		address,
+		option,
+		grpc.WithUserAgent(userAgent()),
+		grpc.WithBlock(),
+>>>>>>> upstream/release-1.9
 	)
 	cancel()
 	if err != nil {
@@ -378,6 +405,19 @@ func (c *GRPCClient) Close() {
 // Allows empty string to reset token on existing client.
 func (c *GRPCClient) WithAuthToken(token string) {
 	c.authToken = token
+}
+
+type clientOptions struct {
+	useTLS bool
+}
+
+type ClientOption func(*clientOptions)
+
+// WithTLS sets gRPC TLS transport credentials on the connection.
+func WithTLS() ClientOption {
+	return func(co *clientOptions) {
+		co.useTLS = true
+	}
 }
 
 // WithTraceID adds existing trace ID to the outgoing context.

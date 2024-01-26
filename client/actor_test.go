@@ -255,7 +255,11 @@ func TestUnregisterActorReminder(t *testing.T) {
 	})
 
 	t.Run("invoke unregister actor reminder with empty param", func(t *testing.T) {
+<<<<<<< HEAD
 		require.Error(t, testClient.UnregisterActorReminder(ctx, nil))
+=======
+		assert.Error(t, testClient.UnregisterActorReminder(ctx, nil))
+>>>>>>> upstream/release-1.9
 	})
 }
 
